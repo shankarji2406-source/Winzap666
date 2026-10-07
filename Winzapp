@@ -1,0 +1,118 @@
+from pathlib import Path
+import zipfile, textwrap, os
+
+root = Path("/mnt/data/WinzapWebView")
+(root/"app/src/main/java/com/winzap/app").mkdir(parents=True, exist_ok=True)
+(root/"app/src/main/res/layout").mkdir(parents=True, exist_ok=True)
+(root/"app/src/main/res/values").mkdir(parents=True, exist_ok=True)
+
+files = {
+"settings.gradle": """pluginManagement { repositories { google(); mavenCentral(); gradlePluginPortal() } }
+dependencyResolutionManagement { repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS); repositories { google(); mavenCentral() } }
+rootProject.name='WinzapWebView'
+include ':app'
+""",
+"build.gradle": """plugins {
+    id 'com.android.application' version '8.7.3' apply false
+}
+""",
+"app/build.gradle": """plugins { id 'com.android.application' }
+
+android { namespace 'com.winzap.app'; compileSdk 35
+    defaultConfig { applicationId 'com.winzap.app'; minSdk 23; targetSdk 35; versionCode 1; versionName '1.0' }
+}
+""",
+"app/src/main/AndroidManifest.xml": """<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-permission android:name="android.permission.INTERNET"/>
+    <application android:theme="@style/AppTheme" android:label="Winzap">
+        <activity android:name=".MainActivity" android:screenOrientation="portrait" android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN"/>
+                <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+        </activity>
+    </application>
+</manifest>
+""",
+"app/src/main/res/values/styles.xml": """<resources>
+<style name="AppTheme" parent="android:style/Theme.Material.Light.NoActionBar">
+    <item name="android:fontFamily">sans</item>
+    <item name="android:colorAccent">#222222</item>
+    <item name="android:navigationBarColor">#000000</item>
+    <item name="android:statusBarColor">#000000</item>
+</style>
+</resources>
+""",
+"app/src/main/res/layout/activity_main.xml": """<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent" android:layout_height="match_parent">
+    <WebView android:id="@+id/webView" android:layout_width="match_parent" android:layout_height="match_parent"/>
+    <ProgressBar android:id="@+id/progress" android:layout_width="48dp" android:layout_height="48dp"
+        android:layout_gravity="center"/>
+</FrameLayout>
+""",
+"app/src/main/java/com/winzap/app/MainActivity.java": """package com.winzap.app;
+
+import android.app.*;
+import android.os.*;
+import android.view.*;
+import android.webkit.*;
+import android.net.*;
+import android.widget.*;
+import android.graphics.Color;
+
+public class MainActivity extends Activity {
+    WebView webView; ProgressBar progress;
+    @Override public void onCreate(Bundle b) {
+        super.onCreate(b);
+        setContentView(R.layout.activity_main);
+        webView=findViewById(R.id.webView); progress=findViewById(R.id.progress);
+        WebSettings s=webView.getSettings();
+        s.setJavaScriptEnabled(true); s.setDomStorageEnabled(true);
+        s.setLoadWithOverviewMode(true); s.setUseWideViewPort(true);
+        s.setMediaPlaybackRequiresUserGesture(false);
+        webView.setBackgroundColor(Color.WHITE);
+        webView.setWebViewClient(new WebViewClient());
+        webView.setWebChromeClient(new WebChromeClient());
+        webView.setDownloadListener((url,userAgent,contentDisposition,mimeType,contentLength)->{
+            Intent i=new Intent(Intent.ACTION_VIEW, Uri.parse(url)); startActivity(i);
+        });
+        webView.setOnKeyListener((v,key,event)->{
+            if(key==KeyEvent.KEYCODE_BACK && event.getAction()==KeyEvent.ACTION_UP && webView.canGoBack()){
+                webView.goBack(); return true;
+            } return false;
+        });
+        webView.loadUrl("https://winzap.com/");
+    }
+}
+"""
+}
+for p,c in files.items():
+    f=root/p; f.parent.mkdir(parents=True, exist_ok=True); f.write_text(c)
+
+readme = root/"README.md"
+readme.write_text("""# Winzap Android WebView Project
+
+Professional starter Android app that opens `https://winzap.com/` in a WebView.
+
+## Build
+Open this folder in Android Studio, allow Gradle sync, then use:
+Build → Build APK(s)
+
+## Included
+- WebView + JavaScript + DOM storage
+- Splash/loading indicator
+- Back navigation
+- Full-screen website viewport
+- Basic download handoff
+- HTTPS website loading
+
+Note: This is a wrapper project, not a betting automation tool. Use only where the website/operator and applicable laws permit.
+""")
+
+zip_path="/mnt/data/WinzapWebView_Project.zip"
+with zipfile.ZipFile(zip_path,"w",zipfile.ZIP_DEFLATED) as z:
+    for f in root.rglob("*"):
+        if f.is_file():
+            z.write(f, f.relative_to(root))
+zip_path
